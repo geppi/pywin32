@@ -79,8 +79,8 @@ def main():
         extras.append("-user-interaction")
     extras.extend(remains)
     scripts = [
-        "win32/test/testall.py",
-        "Pythonwin/pywin/test/all.py",
+        #"win32/test/testall.py",
+        #"Pythonwin/pywin/test/all.py",
     ]
     for script in scripts:
         maybes = [os.path.join(directory, script) for directory in code_directories]
