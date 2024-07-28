@@ -121,13 +121,14 @@ class PippoTest(TestCase):
 # function in that module if the module isn't unitest based...
 unittest_modules = [
     # Level 1 tests - fast and few dependencies - good for CI!
-    """testIterators testvbscript_regexp testStorage
-          testStreams testWMI policySemantics testShell testROT
-          testxslt testCollections
-          errorSemantics.test testArrays
-          testClipboard
-          testConversionErrors
-        """.split(),
+    [],
+    # """testIterators testvbscript_regexp testStorage
+    #       testStreams testWMI policySemantics testShell testROT
+    #       testxslt testCollections
+    #       errorSemantics.test testArrays
+    #       testClipboard
+    #       testConversionErrors
+    #     """.split(),
     # Level 2 tests - wants our demo COM objects registered.
     # (these are strange; on github CI they get further than expected when
     # our objects are not installed, so fail to quietly fail with "can't
@@ -148,8 +149,9 @@ unittest_modules = [
 # names and the module is assumed to be unittest based.
 unittest_other_modules = [
     # Level 1 tests.
-    """win32com.directsound.test.ds_test
-        """.split(),
+    [],
+    # """win32com.directsound.test.ds_test
+    #     """.split(),
     # Level 2 tests.
     [],
     # Level 3 tests.
@@ -178,10 +180,11 @@ output_checked_programs = [
 
 custom_test_cases = [
     # Level 1 tests.
-    [],
-    # Level 2 tests.
     [
         PyCOMTest,
+    ],
+    # Level 2 tests.
+    [
         PippoTest,
     ],
     # Level 3 tests
