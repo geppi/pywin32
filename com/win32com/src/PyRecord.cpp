@@ -1,3 +1,4 @@
+#include <new>
 #include "stdafx.h"
 #include "PythonCOM.h"
 #include "PyRecord.h"
@@ -217,11 +218,56 @@ PyRecord::~PyRecord()
     pri->Release();
 }
 
+PyObject *PyRecord::tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    PyObject *obGuid, *obInfoGuid;
+    int major, minor, lcid;
+    if (!PyArg_ParseTuple(args, "OiiiO:GetRecordFromGuids",
+                          &obGuid,      // @pyparm <o PyIID>|iid||The GUID of the type library
+                          &major,       // @pyparm int|verMajor||The major version number of the type lib.
+                          &minor,       // @pyparm int|verMinor||The minor version number of the type lib.
+                          &lcid,        // @pyparm int|lcid||The LCID of the type lib.
+                          &obInfoGuid)) // @pyparm <o PyIID>|infoIID||The GUID of the record info in the library
+        return NULL;
+    GUID guid, infoGuid;
+    if (!PyWinObject_AsIID(obGuid, &guid))
+        return NULL;
+    if (!PyWinObject_AsIID(obInfoGuid, &infoGuid))
+        return NULL;
+    IRecordInfo *ri = NULL;
+    HRESULT hr = GetRecordInfoFromGuids(guid, major, minor, lcid, infoGuid, &ri);
+    if (FAILED(hr))
+        return PyCom_BuildPyException(hr);
+    ULONG cb;
+    hr = ri->GetSize(&cb);
+    if (FAILED(hr))
+        return PyCom_BuildPyException(hr, ri, IID_IRecordInfo);
+    PyRecordBuffer *owner = new PyRecordBuffer(cb);
+    if (PyErr_Occurred()) {  // must be mem error!
+        delete owner;
+        return NULL;
+    }
+    hr = ri->RecordInit(owner->data);
+    if (FAILED(hr)) {
+        delete owner;
+        return PyCom_BuildPyException(hr, ri, IID_IRecordInfo);
+    }
+    PyRecord *self;
+    self = (PyRecord *) type->tp_alloc(type, 0);
+    if (self != NULL)
+        self->pri = ri;
+        self->pdata = owner->data;
+        self->owner = owner;
+        owner->AddRef();
+        // self = new(self) PyRecord(ri, owner->data, owner);
+    return (PyObject *) self;
+}
+
 PyTypeObject PyRecord::Type = {
     PYWIN_OBJECT_HEAD "com_record",
     sizeof(PyRecord),
     0,
-    PyRecord::tp_dealloc,     /* tp_dealloc */
+    (destructor) PyRecord::tp_dealloc,     /* tp_dealloc */
     0,                        /* tp_print */
     0,                        /* tp_getattr */
     0,                        /* tp_setattr */
@@ -236,7 +282,7 @@ PyTypeObject PyRecord::Type = {
     PyRecord::getattro,       /* tp_getattro */
     PyRecord::setattro,       /* tp_setattro */
     0,                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,       /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,       /* tp_flags */
     0,                        /* tp_doc */
     0,                        /* tp_traverse */
     0,                        /* tp_clear */
@@ -254,7 +300,7 @@ PyTypeObject PyRecord::Type = {
     0,                        /* tp_dictoffset */
     0,                        /* tp_init */
     0,                        /* tp_alloc */
-    0,                        /* tp_new */
+    (newfunc)PyRecord::tp_new,/* tp_new */
 };
 
 static PyObject *PyRecord_reduce(PyObject *self, PyObject *args)
@@ -645,4 +691,10 @@ done:
     return ret;
 }
 
-void PyRecord::tp_dealloc(PyObject *ob) { delete (PyRecord *)ob; }
+// void PyRecord::tp_dealloc(PyObject *ob) { delete (PyRecord *)ob; }
+void PyRecord::tp_dealloc(PyRecord *self)
+{
+    self->owner->Release();
+    self->pri->Release();
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
