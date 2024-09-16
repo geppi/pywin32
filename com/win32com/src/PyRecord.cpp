@@ -32,7 +32,7 @@ class PyRecordBuffer {
     long ref;
 };
 
-BOOL PyRecord_Check(PyObject *ob) { return ((ob)->ob_type == &PyRecord::Type); }
+BOOL PyRecord_Check(PyObject *ob) { return PyObject_IsInstance(ob, (PyObject *) &PyRecord::Type); }
 
 BOOL PyObject_AsVARIANTRecordInfo(PyObject *ob, VARIANT *pv)
 {
