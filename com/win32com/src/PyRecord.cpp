@@ -92,7 +92,7 @@ PyObject *PyObject_FromSAFEARRAYRecordInfo(SAFEARRAY *psa)
         hr = info->RecordCopy(source_data, this_dest_data);
         if (FAILED(hr))
             goto exit;
-        PyTuple_SET_ITEM(ret_tuple, i, new PyRecord(info, this_dest_data, owner));
+        PyTuple_SET_ITEM(ret_tuple, i, PyRecord::new_record(info, this_dest_data, owner, &PyRecord::Type));
         this_dest_data += cb_elem;
         source_data += cb_elem;
     }
@@ -142,7 +142,7 @@ PyObject *PyObject_FromRecordInfo(IRecordInfo *ri, void *data, ULONG cbData)
         delete owner;
         return PyCom_BuildPyException(hr, ri, IID_IRecordInfo);
     }
-    return new PyRecord(ri, owner->data, owner);
+    return PyRecord::new_record(ri, owner->data, owner, &PyRecord::Type);
 }
 
 // @pymethod <o PyRecord>|pythoncom|GetRecordFromGuids|Creates a new record object from the given GUIDs
@@ -201,14 +201,22 @@ PyObject *pythoncom_GetRecordFromTypeInfo(PyObject *self, PyObject *args)
     return ret;
 }
 
-PyRecord::PyRecord(IRecordInfo *ri, PVOID data, PyRecordBuffer *owner)
+PyRecord *PyRecord::new_record(IRecordInfo *ri, PVOID data, PyRecordBuffer *owner, PyTypeObject *type)
 {
-    ob_type = &PyRecord::Type;
-    _Py_NewReference(this);
+    char *buf = (char *) PyRecord::Type.tp_alloc(type, 0);
+    if (buf == NULL) {
+        delete owner;
+        return NULL;
+    }
+    return new(buf) PyRecord(ri, owner->data, owner);
+}
+
+PyRecord::PyRecord(IRecordInfo *ri, PVOID data, PyRecordBuffer *buf_owner)
+{
     ri->AddRef();
     pri = ri;
     pdata = data;
-    this->owner = owner;
+    owner = buf_owner;
     owner->AddRef();
 };
 
@@ -222,7 +230,7 @@ PyObject *PyRecord::tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     PyObject *obGuid, *obInfoGuid;
     int major, minor, lcid;
-    if (!PyArg_ParseTuple(args, "OiiiO:GetRecordFromGuids",
+    if (!PyArg_ParseTuple(args, "OiiiO:__new__",
                           &obGuid,      // @pyparm <o PyIID>|iid||The GUID of the type library
                           &major,       // @pyparm int|verMajor||The major version number of the type lib.
                           &minor,       // @pyparm int|verMinor||The minor version number of the type lib.
@@ -245,21 +253,18 @@ PyObject *PyRecord::tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     PyRecordBuffer *owner = new PyRecordBuffer(cb);
     if (PyErr_Occurred()) {  // must be mem error!
         delete owner;
+        ri->Release();
         return NULL;
     }
     hr = ri->RecordInit(owner->data);
     if (FAILED(hr)) {
         delete owner;
-        return PyCom_BuildPyException(hr, ri, IID_IRecordInfo);
+        PyCom_BuildPyException(hr, ri, IID_IRecordInfo);
+        ri->Release();
+        return NULL;
     }
-    PyRecord *self;
-    self = (PyRecord *) type->tp_alloc(type, 0);
-    if (self != NULL)
-        self->pri = ri;
-        self->pdata = owner->data;
-        self->owner = owner;
-        owner->AddRef();
-        // self = new(self) PyRecord(ri, owner->data, owner);
+    PyRecord *self = PyRecord::new_record(ri, owner->data, owner, type);
+    ri->Release();
     return (PyObject *) self;
 }
 
@@ -542,7 +547,7 @@ PyObject *PyRecord::getattro(PyObject *self, PyObject *obname)
     // Short-circuit sub-structs and arrays here, so we don't allocate a new chunk
     // of memory and copy it - we need sub-structs to persist.
     if (V_VT(&vret) == (VT_BYREF | VT_RECORD))
-        return new PyRecord(V_RECORDINFO(&vret), V_RECORD(&vret), pyrec->owner);
+        return PyRecord::new_record(V_RECORDINFO(&vret), V_RECORD(&vret), pyrec->owner, &PyRecord::Type);
     else if (V_VT(&vret) == (VT_BYREF | VT_ARRAY | VT_RECORD)) {
         SAFEARRAY *psa = *V_ARRAYREF(&vret);
         if (SafeArrayGetDim(psa) != 1)
@@ -577,7 +582,7 @@ PyObject *PyRecord::getattro(PyObject *self, PyObject *obname)
         // in the last parameter, i.e. 'sub_data == NULL'.
         this_data = (BYTE *)psa->pvData;
         for (i = 0; i < nelems; i++) {
-            PyTuple_SET_ITEM(ret_tuple, i, new PyRecord(sub, this_data, pyrec->owner));
+            PyTuple_SET_ITEM(ret_tuple, i, PyRecord::new_record(sub, this_data, pyrec->owner, &PyRecord::Type));
             this_data += element_size;
         }
     array_end:
@@ -691,10 +696,8 @@ done:
     return ret;
 }
 
-// void PyRecord::tp_dealloc(PyObject *ob) { delete (PyRecord *)ob; }
 void PyRecord::tp_dealloc(PyRecord *self)
 {
-    self->owner->Release();
-    self->pri->Release();
+    self->~PyRecord();
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
