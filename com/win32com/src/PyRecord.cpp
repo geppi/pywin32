@@ -222,25 +222,7 @@ PyRecord *PyRecord::new_record(IRecordInfo *ri, PVOID data, PyRecordBuffer *owne
     if (S_OK != StringFromCLSID(structguid, &guidString))
         return NULL;
     // Obtain a copy of the subclasses list to iterate over.
-    // We have to deal with weak references contained in the dictionary.
-    list = PyList_New(0);
-    if (list == NULL)
-        return NULL;
-    raw = type->tp_subclasses;
-    if (raw != NULL) {
-        assert(PyDict_CheckExact(raw));
-        i = 0;
-        while (PyDict_Next(raw, &i, NULL, &ref)) {
-            assert(PyWeakref_CheckRef(ref));
-            ref = PyWeakref_GET_OBJECT(ref);
-            if (ref != Py_None) {
-                if (PyList_Append(list, ref) < 0) {
-                    Py_DECREF(list);
-                    return NULL;
-                }
-            }
-        }
-    }
+    list = PyObject_CallMethod((PyObject*)type, "__subclasses__", NULL);
     // We now have a list of the directly derived subclasses of 'com_record'.
     // If no subclasses have been defined the list is empty.
     // Iterate over the list and try to find a subclass with matching GUID.
