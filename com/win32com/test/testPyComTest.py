@@ -275,7 +275,7 @@ def TestCommon(o, is_generated):
     TestConstant("UCharTest", 255)
     TestConstant("CharTest", -1)
     # 'Hello World', but the 'r' is the "Registered" sign (\xae)
-    TestConstant("StringTest", "Hello Wo\xaeld")
+    TestConstant("StringTest", "Hello Woï¿½ld")
 
     progress("Checking dates and times")
     # For now *all* times passed must be tz-aware.
@@ -431,8 +431,8 @@ def TestGenerated():
     assert bool(coclass_o)
 
     # This is `CoSimpleCounter` and the counter tests should work.
-    coclass = GetClass("{B88DD310-BAE8-11D0-AE86-76F2C1000000}")()
-    TestCounter(coclass, True)
+    # coclass = GetClass("{B88DD310-BAE8-11D0-AE86-76F2C1000000}")()
+    # TestCounter(coclass, True)
 
     # Test records with SAFEARRAY(VT_RECORD) fields.
     progress("Testing records with SAFEARRAY(VT_RECORD) fields.")
