@@ -1157,6 +1157,31 @@ class Generator:
         print("}", file=stream)
         print(file=stream)
 
+        # Generate the COM Record classes.
+        la = self.typelib.GetLibAttr()
+        tlbid = la[0]
+        mjver = la[3]
+        mnver = la[4]
+        lcid = la[1]
+        for record in recordItems.values():
+            if record.clsid == pythoncom.IID_NULL:
+                continue
+            else:
+                print(f"class {record.doc[0]}(pythoncom.com_record):", file=stream)
+                print(f"\t__slots__ = ()", file=stream)
+                print(f'\tTLBID = "{str(tlbid)}"', file=stream)
+                print(f"\tMJVER = {mjver}", file=stream)
+                print(f"\tMNVER = {mnver}", file=stream)
+                print(f"\tLCID = {lcid}", file=stream)
+                print(f'\tGUID = "{record.clsid}"', file=stream)
+                print(file=stream)
+        # Generate the code to register the COM Record classes.
+        print(f"namespace = globals()", file=stream)
+        print(f"for name in RecordMap:", file=stream)
+        print(f"\tcls = namespace[name]", file=stream)
+        print(f"\tpythoncom.RecordClasses[cls.GUID] = cls", file=stream)
+        print(file=stream)
+
         # Write out _all_ my generated CLSID's in the map
         if self.generate_type == GEN_FULL:
             print("CLSIDToClassMap = {", file=stream)
