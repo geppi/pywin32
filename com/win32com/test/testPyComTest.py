@@ -661,6 +661,11 @@ def TestGenerated():
     r = o.GetOutStruct()
     assert type(r) is pythoncom.com_record
     assert r.int_value == 99 and str(r.str_value) == "Luftballons"
+    # Test passing a pythoncom.com_record by value.
+    try:
+        o.PassStructByValue(r)
+    except Exception as e:
+        raise AssertionError('Passing struct by value failed.') from e
     # Test pythoncom.com_record as a retval:
     r = o.GetStruct()
     assert type(r) is pythoncom.com_record
@@ -713,6 +718,11 @@ def TestGenerated():
     # of pythoncom.com_record, the return value should have this type.
     assert type(r) is TestStruct1
     assert r.int_value == 99 and str(r.str_value) == "Luftballons"
+    # Test passing a pythoncom.com_record subclass by value.
+    try:
+        o.PassStructByValue(r)
+    except Exception as e:
+        raise AssertionError('Passing struct by value failed.') from e
 
     # Perform the 'Byref' and 'ArrayOfStruct tests using the registered subclasses.
     r = o.GetStruct()

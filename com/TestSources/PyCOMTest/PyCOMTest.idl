@@ -270,6 +270,7 @@ library PyCOMTestLib
 							   [out, retval] IPyCOMTest **ppout );
 		HRESULT GetStruct([out, retval]TestStruct1 *ret);
         HRESULT GetOutStruct([out]TestStruct1 *pRecord);
+		HRESULT PassStructByValue([in]TestStruct1 recVal);
 		HRESULT DoubleString([in] BSTR inStr, [out, retval] BSTR *outStr);
 		HRESULT DoubleInOutString([in,out] BSTR *str);
 		[restricted] HRESULT NotScriptable([in,out] int *val);

@@ -636,6 +636,15 @@ HRESULT CPyCOMTest::GetOutStruct(TestStruct1 *pRecord)
     return S_OK;
 }
 
+HRESULT CPyCOMTest::PassStructByValue(TestStruct1 recVal)
+{
+    if (recVal.int_value != 99 || wcscmp(recVal.str_value, L"Luftballons") != 0) {
+        return E_FAIL;
+    }
+    
+    return S_OK;
+}
+
 HRESULT CPyCOMTest::ModifyStruct(TestStruct1 *prec)
 {
     prec->int_value = 100;
